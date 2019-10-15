@@ -1,0 +1,3 @@
+#!/bin/sh
+output="$(nix-prefetch-git --no-deepClone https://github.com/NixOS/nixpkgs-channels.git refs/heads/nixpkgs-unstable)"
+test "$?" -eq 0 && printf '%s' "$output" > nixpkgs.json

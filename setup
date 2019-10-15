@@ -1,0 +1,69 @@
+#!/bin/sh
+root="$(realpath -- .)"
+nix="$(dirname -- "$(realpath -- "$0")")"
+
+nix_escape_string() {
+	jq --null-input --arg input "$1" '$input' | sed 's/\$/\\\$/'
+}
+
+nix_absolute_path() {
+	printf '(/. + %s)' "$(nix_escape_string "$(realpath -- "$1")")"
+}
+
+nix_relative_path() {
+	printf '(./. + %s)' "$(nix_escape_string "/$(realpath --relative-to="$2" -- "$1")")"
+}
+
+if [ ! -e "$root"/config.nix ]; then
+	cp "$nix"/config.nix "$root"/config.nix
+fi
+
+if [ ! -e "$root"/options.nix ]; then
+	cp "$nix"/options.nix "$root"/options.nix
+fi
+
+if [ ! -e "$root"/overrides.nix ]; then
+	cp "$nix"/overrides.nix "$root"/overrides.nix
+fi
+
+if [ ! -e "$root"/nixpkgs.json ]; then
+	(cd "$root" && "$nix"/update-nixpkgs)
+fi
+
+if [ ! -e "$root"/default.nix ]; then
+	printf 'import %s ./.' \
+		"$(nix_relative_path "$nix/default.nix" "$root")" \
+		> "$root"/default.nix
+fi
+
+if [ ! -e "$root"/shell.nix ]; then
+	printf 'import %s ./.' \
+		"$(nix_relative_path "$nix/shell.nix" "$root")" \
+		> "$root"/shell.nix
+fi
+
+expr="$(printf '(with builtins; mapAttrs (_: toString) ((import %s).cabalPackages %s))' \
+	"$(nix_absolute_path "$nix/lib.nix")" \
+	"$(nix_absolute_path "$root")")"
+
+nix eval --json "$expr" | jq -r 'to_entries[].value' | while read cabal; do
+	dir="$(dirname -- "$cabal")"
+	if [ -f "$dir/.git" ]; then # skip if this is a git submodule
+		continue
+	fi
+	if [ "$dir" = "$root" ]; then
+		continue
+	fi
+	if [ ! -e "$dir"/default.nix ]; then
+		printf 'import %s %s ./.' \
+			"$(nix_relative_path "$nix/subproject/default.nix" "$dir")" \
+			"$(nix_relative_path "$root" "$dir")" \
+			> "$dir"/default.nix
+	fi
+	if [ ! -e "$dir"/shell.nix ]; then
+		printf 'import %s %s ./.' \
+			"$(nix_relative_path "$nix/subproject/shell.nix" "$dir")" \
+			"$(nix_relative_path "$root" "$dir")" \
+			> "$dir"/shell.nix
+	fi
+done
