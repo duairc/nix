@@ -68,7 +68,7 @@ rec {
       compose = old: {
         overrides = pkgs.lib.composeExtensions
           (pkgs.lib.composeExtensions (old.overrides or (_: _: {})) projects)
-          (overrides pkgs.haskell.lib);
+          (overrides pkgs);
       };
     in if opts.ghc == null then {
       haskellPackages = pkgs.haskellPackages.override compose;
