@@ -58,7 +58,7 @@ rec {
       then import (dir + "/overrides.nix")
       else _: _: _: {};
 
-    projects = lib: self: super: let
+    projects = self: super: let
       go = name: package: self.callCabal2nix name (dirOf package) {};
     in mapAttrs go (cabalPackages dir);
 
@@ -66,10 +66,9 @@ rec {
     packageOverrides = oldpkgs: let
       pkgs = (preconfig.packageOverrides or (p: p)) oldpkgs;
       compose = old: {
-        overrides = pkgs.lib.composeExtensions (old.overrides or (_: _: {}))
-          (self: super: let
-            lib = pkgs.haskell.lib;
-          in overrides lib self super // projects lib self super);
+        overrides = pkgs.lib.composeExtensions
+          (pkgs.lib.composeExtensions (old.overrides or (_: _: {})) projects)
+          (overrides pkgs.haskell.lib);
       };
     in if opts.ghc == null then {
       haskellPackages = pkgs.haskellPackages.override compose;
