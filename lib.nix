@@ -110,10 +110,11 @@ rec {
         name = name;
         value = package;
       }
-      {
-        name = "${name}-static";
-        value = pkgs.haskell.lib.justStaticExecutables package;
-      }
+      # This would be nice to have but doesn't do anything useful yet AFAICT
+      #{
+      #  name = "${name}-static";
+      #  value = pkgs.haskell.lib.justStaticExecutables package;
+      #}
     ];
     in listToAttrs (concatMap go (attrNames cabals)));
 
