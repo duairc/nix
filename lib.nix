@@ -133,7 +133,11 @@ rec {
         ghcid cabal-install
       ]);
     });
-    full = hspkgs.ghcWithPackages project;
+    full = pkgs.mkShell {
+      buildInputs = [
+        (hspkgs.ghcWithPackages project)
+      ];
+    };
   in if opts.dev then shell else full);
 
   shell = dir: metashell (cabalPackages dir) dir;
