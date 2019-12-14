@@ -83,12 +83,10 @@ rec {
   };
 
   packages = dir: opts: let
-    bootstrap = import <nixpkgs> {};
     nixpkgs = fromJSON (readFile (dir + "/nixpkgs.json"));
-    src = bootstrap.fetchFromGitHub {
-      owner = "NixOS";
-      repo = "nixpkgs";
-      inherit (nixpkgs) rev sha256;
+    src = fetchTarball {
+      url = "https://github.com/NixOS/nixpkgs/archive/${nixpkgs.rev}.tar.gz";
+      inherit (nixpkgs) sha256;
     };
   in import src {
     config = config dir opts;
