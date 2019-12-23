@@ -58,16 +58,30 @@ rec {
       then import (dir + "/overrides.nix")
       else _: _: _: {};
 
-    projects = self: super: let
-      go = name: package: self.callCabal2nix name (dirOf package) {};
+    projects = pkgs: let
+      gitignoreSrc = pkgs.fetchFromGitHub { 
+        owner = "hercules-ci";
+        repo = "gitignore";
+        rev = "7415c4feb127845553943a3856cbc5cb967ee5e0";
+        sha256 = "1zd1ylgkndbb5szji32ivfhwh04mr1sbgrnvbrqpmfb67g2g3r9i";
+      };
+      inherit (import gitignoreSrc { inherit (pkgs) lib; }) gitignoreFilter;
+    in self: super: let
+      go = name: package: let
+        src = dirOf package;
+      in self.callCabal2nix name (pkgs.lib.cleanSourceWith {
+        inherit name src;
+        filter = gitignoreFilter src;
+      }) {};
     in mapAttrs go (cabalPackages dir);
 
   in preconfig // {
     packageOverrides = oldpkgs: let
       pkgs = (preconfig.packageOverrides or (p: p)) oldpkgs;
+      projects' = projects pkgs;
       compose = old: {
         overrides = pkgs.lib.composeExtensions
-          (pkgs.lib.composeExtensions (old.overrides or (_: _: {})) projects)
+          (pkgs.lib.composeExtensions (old.overrides or (_: _: {})) projects')
           (overrides pkgs);
       };
     in if opts.ghc == null then {
